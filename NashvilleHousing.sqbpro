@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="C:/Users/princ/OneDrive/Desktop/NashvilleHousing.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="150"/><column_width id="3" width="3836"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,22:mainNashville_Housing_Data"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="Nashville_Housing_Data" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="109"/><column index="2" value="164"/><column index="3" value="261"/><column index="4" value="300"/><column index="5" value="300"/><column index="6" value="106"/><column index="7" value="179"/><column index="9" value="300"/><column index="10" value="300"/><column index="11" value="95"/><column index="12" value="275"/><column index="13" value="118"/><column index="14" value="153"/><column index="15" value="119"/><column index="16" value="105"/><column index="17" value="113"/><column index="18" value="96"/><column index="19" value="100"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1">/*
+
+Cleaning Data in SQL Queries
+
+*/
+
+
+Select *
+From PortfolioProject.dbo.NashvilleHousing
+
+--------------------------------------------------------------------------------------------------------------------------
+
+-- Standardize Date Format
+
+
+Select saleDateConverted, CONVERT(Date,SaleDate)
+From PortfolioProject.dbo.NashvilleHousing
+
+
+Update NashvilleHousing
+SET SaleDate = CONVERT(Date,SaleDate)
+
+-- If it doesn't Update properly
+
+ALTER TABLE NashvilleHousing
+Add SaleDateConverted Date;
+
+Update NashvilleHousing
+SET SaleDateConverted = CONVERT(Date,SaleDate)
+
+
+ --------------------------------------------------------------------------------------------------------------------------
+
+-- Populate Property Address data
+
+Select *
+From PortfolioProject.dbo.NashvilleHousing
+--Where PropertyAddress is null
+order by ParcelID
+
+
+
+Select a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress,b.PropertyAddress)
+From PortfolioProject.dbo.NashvilleHousing a
+JOIN PortfolioProject.dbo.NashvilleHousing b
+	on a.ParcelID = b.ParcelID
+	AND a.[UniqueID ] &lt;&gt; b.[UniqueID ]
+Where a.PropertyAddress is null
+
+
+Update a
+SET PropertyAddress = ISNULL(a.PropertyAddress,b.PropertyAddress)
+From PortfolioProject.dbo.NashvilleHousing a
+JOIN PortfolioProject.dbo.NashvilleHousing b
+	on a.ParcelID = b.ParcelID
+	AND a.[UniqueID ] &lt;&gt; b.[UniqueID ]
+Where a.PropertyAddress is null
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------
+
+-- Breaking out Address into Individual Columns (Address, City, State)
+
+
+Select PropertyAddress
+From PortfolioProject.dbo.NashvilleHousing
+--Where PropertyAddress is null
+--order by ParcelID
+
+SELECT
+SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1 ) as Address
+, SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) + 1 , LEN(PropertyAddress)) as Address
+
+From PortfolioProject.dbo.NashvilleHousing
+
+
+ALTER TABLE NashvilleHousing
+Add PropertySplitAddress Nvarchar(255);
+
+Update NashvilleHousing
+SET PropertySplitAddress = SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1 )
+
+
+ALTER TABLE NashvilleHousing
+Add PropertySplitCity Nvarchar(255);
+
+Update NashvilleHousing
+SET PropertySplitCity = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) + 1 , LEN(PropertyAddress))
+
+
+
+
+Select *
+From PortfolioProject.dbo.NashvilleHousing
+
+
+
+
+
+Select OwnerAddress
+From PortfolioProject.dbo.NashvilleHousing
+
+
+Select
+PARSENAME(REPLACE(OwnerAddress, ',', '.') , 3)
+,PARSENAME(REPLACE(OwnerAddress, ',', '.') , 2)
+,PARSENAME(REPLACE(OwnerAddress, ',', '.') , 1)
+From PortfolioProject.dbo.NashvilleHousing
+
+
+
+ALTER TABLE NashvilleHousing
+Add OwnerSplitAddress Nvarchar(255);
+
+Update NashvilleHousing
+SET OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 3)
+
+
+ALTER TABLE NashvilleHousing
+Add OwnerSplitCity Nvarchar(255);
+
+Update NashvilleHousing
+SET OwnerSplitCity = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 2)
+
+
+
+ALTER TABLE NashvilleHousing
+Add OwnerSplitState Nvarchar(255);
+
+Update NashvilleHousing
+SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress, ',', '.') , 1)
+
+
+
+Select *
+From PortfolioProject.dbo.NashvilleHousing
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------
+
+
+-- Change Y and N to Yes and No in &quot;Sold as Vacant&quot; field
+
+
+Select Distinct(SoldAsVacant), Count(SoldAsVacant)
+From PortfolioProject.dbo.NashvilleHousing
+Group by SoldAsVacant
+order by 2
+
+
+
+
+Select SoldAsVacant
+, CASE When SoldAsVacant = 'Y' THEN 'Yes'
+	   When SoldAsVacant = 'N' THEN 'No'
+	   ELSE SoldAsVacant
+	   END
+From PortfolioProject.dbo.NashvilleHousing
+
+
+Update NashvilleHousing
+SET SoldAsVacant = CASE When SoldAsVacant = 'Y' THEN 'Yes'
+	   When SoldAsVacant = 'N' THEN 'No'
+	   ELSE SoldAsVacant
+	   END
+
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Remove Duplicates
+
+WITH RowNumCTE AS(
+Select *,
+	ROW_NUMBER() OVER (
+	PARTITION BY ParcelID,
+				 PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 ORDER BY
+					UniqueID
+					) row_num
+
+From PortfolioProject.dbo.NashvilleHousing
+--order by ParcelID
+)
+Select *
+From RowNumCTE
+Where row_num &gt; 1
+Order by PropertyAddress
+
+
+
+Select *
+From PortfolioProject.dbo.NashvilleHousing
+
+
+
+
+---------------------------------------------------------------------------------------------------------
+
+-- Delete Unused Columns
+
+
+
+Select *
+From PortfolioProject.dbo.NashvilleHousing
+
+
+ALTER TABLE PortfolioProject.dbo.NashvilleHousing
+DROP COLUMN OwnerAddress, TaxDistrict, PropertyAddress, SaleDate
+
+
+
+
+
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
